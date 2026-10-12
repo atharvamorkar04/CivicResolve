@@ -1,43 +1,18 @@
 import { useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-
-/*
-  BACKEND / DATABASE OVERVIEW:
-
-  This page is currently using demo/static complaint data.
-
-  FINAL FLOW:
-
-  Department Dashboard
-        ↓
-  Click "View Details"
-        ↓
-  GET /api/department/complaints/:complaint_id
-        ↓
-  Flask checks logged-in department
-        ↓
-  MySQL returns complaint details
-        ↓
-  Department updates status / remarks / resolution
-        ↓
-  PUT /api/department/complaints/:complaint_id
-        ↓
-  MySQL is updated
-        ↓
-  Citizen + Admin receive notification
-
-  IMPORTANT:
-  React must NOT connect directly to MySQL.
-  React -> Flask API -> MySQL -> Flask API -> React
-*/
+import PortalNavbar from '../../components/common/PortalNavbar'
+import StatusBadge from '../../components/common/StatusBadge'
+import EmptyState from '../../components/common/EmptyState'
 
 type ComplaintStatus =
   | 'Submitted'
   | 'Assigned'
   | 'In Progress'
   | 'Resolved'
+  | 'Rejected'
 
-type Complaint = {
+interface DepartmentComplaint {
   id: string
   title: string
   category: string
@@ -47,191 +22,21 @@ type Complaint = {
   status: ComplaintStatus
   department: string
   citizen: string
+  photoUrl?: string
+  resolutionRemarks?: string
+  resolutionPhotoUrl?: string
 }
 
-type DepartmentUser = {
+interface DepartmentUser {
   name: string
   email?: string
-}
-
-/*
-  DEMO COMPLAINT DATA:
-
-  This data is only for frontend demonstration.
-
-  FINAL BACKEND:
-
-  Replace this array with data from:
-
-  GET /api/department/complaints/:complaint_id
-
-  Backend should get the complaint from the MySQL
-  "complaints" table.
-
-  Important database relationships:
-
-  complaints.citizen_id
-          ↓
-  users.user_id
-
-  complaints.department_id
-          ↓
-  departments.department_id
-*/
-
-const complaints: Complaint[] = [
-  {
-    id: 'CC-1024',
-    title: 'Large pothole on main road',
-    category: 'Road / Transport',
-    location: 'MG Road',
-    description:
-      'A large pothole has developed on the main road and is causing difficulty for vehicles and pedestrians.',
-    date: '06 Oct 2026',
-    status: 'Assigned',
-    department: 'Road Department',
-    citizen: 'Rahul Patil',
-  },
-  {
-    id: 'CC-1027',
-    title: 'Damaged road near school',
-    category: 'Road / Transport',
-    location: 'Station Road',
-    description:
-      'The road surface near the school is damaged and requires repair.',
-    date: '05 Oct 2026',
-    status: 'In Progress',
-    department: 'Road Department',
-    citizen: 'Amit Sharma',
-  },
-  {
-    id: 'CC-1031',
-    title: 'Water leakage from pipeline',
-    category: 'Water Supply',
-    location: 'Shivaji Nagar',
-    description:
-      'Water is continuously leaking from a damaged pipeline and creating water wastage.',
-    date: '05 Oct 2026',
-    status: 'Assigned',
-    department: 'Water Department',
-    citizen: 'Sneha Joshi',
-  },
-  {
-    id: 'CC-1034',
-    title: 'Street light not working',
-    category: 'Electrical / Street Light',
-    location: 'Market Area',
-    description:
-      'The street light is not working properly, making the area dark during night hours.',
-    date: '04 Oct 2026',
-    status: 'Resolved',
-    department: 'Electrical Department',
-    citizen: 'Akshay More',
-  },
-  {
-    id: 'CC-1038',
-    title: 'Garbage accumulation',
-    category: 'Garbage / Cleaning',
-    location: 'Main Market',
-    description:
-      'Garbage has accumulated near the market area and requires cleaning.',
-    date: '04 Oct 2026',
-    status: 'In Progress',
-    department: 'Sanitation Department',
-    citizen: 'Priya Shah',
-  },
-  {
-    id: 'CC-1040',
-    title: 'Blocked drainage line',
-    category: 'Drainage',
-    location: 'Nehru Nagar',
-    description:
-      'The drainage line is blocked and wastewater is collecting on the roadside.',
-    date: '03 Oct 2026',
-    status: 'Assigned',
-    department: 'Drainage Department',
-    citizen: 'Vikas Jadhav',
-  },
-  {
-    id: 'CC-1043',
-    title: 'Damaged garden equipment',
-    category: 'Parks & Garden',
-    location: 'Central Garden',
-    description:
-      'Some equipment in the public garden is damaged and needs maintenance.',
-    date: '03 Oct 2026',
-    status: 'Submitted',
-    department: 'Parks & Garden Department',
-    citizen: 'Neha Kulkarni',
-  },
-  {
-    id: 'CC-1046',
-    title: 'Unsafe area near public place',
-    category: 'Safety',
-    location: 'Bus Stand Area',
-    description:
-      'The area requires attention because citizens have reported safety concerns.',
-    date: '02 Oct 2026',
-    status: 'In Progress',
-    department: 'Public Safety Department',
-    citizen: 'Rohit Deshmukh',
-  },
-]
-
-function getStatusClasses(status: ComplaintStatus) {
-  switch (status) {
-    case 'Submitted':
-      return 'bg-slate-100 text-slate-700'
-
-    case 'Assigned':
-      return 'bg-blue-100 text-blue-700'
-
-    case 'In Progress':
-      return 'bg-amber-100 text-amber-700'
-
-    case 'Resolved':
-      return 'bg-green-100 text-green-700'
-
-    default:
-      return 'bg-slate-100 text-slate-700'
-  }
 }
 
 function DepartmentComplaintDetails() {
   const navigate = useNavigate()
   const { id } = useParams()
 
-  /*
-    DEPARTMENT AUTHENTICATION:
-
-    Current demo:
-    departmentUser is stored in localStorage.
-
-    FINAL BACKEND:
-
-    Use the authenticated Flask session/token.
-
-    Suggested API:
-    GET /api/auth/me
-
-    Backend should return something like:
-
-    {
-      "user_id": 7,
-      "name": "Road Department",
-      "email": "road@civicresolve.com",
-      "role": "department",
-      "department_id": 1
-    }
-
-    Do NOT trust department_id or department name
-    sent manually by the frontend.
-
-    Flask must identify the logged-in department itself.
-  */
-
   const storedDepartment = localStorage.getItem('departmentUser')
-
   let departmentUser: DepartmentUser | null = null
 
   if (storedDepartment) {
@@ -242,852 +47,308 @@ function DepartmentComplaintDetails() {
     }
   }
 
-  /*
-    CURRENT DEMO:
-
-    Complaint is found from the static array.
-
-    FINAL BACKEND:
-
-    Replace this with:
-
-    GET /api/department/complaints/:complaint_id
-
-    Flask should:
-    1. Check that the complaint exists.
-    2. Get its department_id.
-    3. Get the logged-in department_id.
-    4. Compare both IDs.
-    5. Return the complaint only if they match.
-
-    This is important because a department must not
-    access another department's complaint by changing
-    the complaint ID in the URL.
-  */
-
-  const complaint = complaints.find((item) => item.id === id)
-
-  /*
-    FRONTEND AUTHORIZATION CHECK:
-
-    This check is useful for the demo.
-
-    FINAL SECURITY MUST ALSO BE DONE IN FLASK.
-
-    Frontend checks:
-    complaint.department === departmentUser.name
-
-    Backend should check:
-    complaints.department_id === logged_in_user.department_id
-
-    Backend authorization is the actual security layer.
-  */
+  // Empty state pending MySQL integration
+  const [complaints] = useState<DepartmentComplaint[]>([])
+  const complaint = complaints.find((item) => item.id === id) || null
 
   const isAuthorized =
-    complaint &&
-    departmentUser &&
-    complaint.department === departmentUser.name
-
-  /*
-    CURRENT DEMO STATE:
-
-    These values exist only in React memory.
-
-    FINAL BACKEND:
-
-    The initial status should come from the database.
-
-    When the department changes the status,
-    the new value should be sent to Flask.
-
-    Suggested API:
-    PUT /api/department/complaints/:complaint_id
-
-    Request example:
-
-    {
-      "status": "In Progress",
-      "remarks": "Repair work has started.",
-      "resolution": ""
-    }
-  */
+    complaint && departmentUser && complaint.department === departmentUser.name
 
   const [status, setStatus] = useState<ComplaintStatus>(
-    isAuthorized ? complaint.status : 'Assigned',
+    isAuthorized && complaint ? complaint.status : 'Assigned'
   )
-
   const [remarks, setRemarks] = useState('')
   const [resolution, setResolution] = useState('')
   const [resolutionPhoto, setResolutionPhoto] = useState<File | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState('')
+  const [resolutionPhotoPreview, setResolutionPhotoPreview] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  /*
-    UPDATE COMPLAINT:
+  const handlePhotoSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-    CURRENT DEMO:
-    Only shows a success message.
+    setSelectedResolutionPhoto(file)
+  }
 
-    FINAL BACKEND:
-
-    On clicking Update Complaint:
-
-    React should send:
-    - complaint ID
-    - new status
-    - remarks
-    - resolution details
-    - resolution photo if selected
-
-    Suggested API:
-    PUT /api/department/complaints/:complaint_id
-
-    Flask should then:
-
-    1. Authenticate the department user.
-    2. Verify department authorization.
-    3. Verify complaint exists.
-    4. Validate the requested status.
-    5. Save status in complaints table.
-    6. Save remarks.
-    7. Save resolution information if applicable.
-    8. Save status history.
-    9. Save uploaded resolution photo.
-    10. Create citizen notification.
-    11. Create admin notification.
-    12. Return success response.
-
-    Example response:
-
-    {
-      "success": true,
-      "message": "Complaint updated successfully"
-    }
-  */
-
-  const handleUpdate = () => {
-    setError('')
-    setSuccess(false)
-
-    /*
-      VALIDATION:
-
-      Resolution details are required before a department
-      marks a complaint as Resolved.
-
-      Backend MUST perform the same validation.
-
-      Never rely only on frontend validation because
-      frontend validation can be bypassed.
-    */
-
-    if (status === 'Resolved' && !resolution.trim()) {
-      setError(
-        'Please enter resolution details before marking the complaint as resolved.',
-      )
+  const setSelectedResolutionPhoto = (file: File | null) => {
+    if (!file) {
+      setResolutionPhoto(null)
+      setResolutionPhotoPreview(null)
       return
     }
 
-    /*
-      FINAL BACKEND REQUEST:
-
-      Example concept:
-
-      const formData = new FormData()
-
-      formData.append('status', status)
-      formData.append('remarks', remarks)
-      formData.append('resolution_info', resolution)
-
-      if (resolutionPhoto) {
-        formData.append('resolution_photo', resolutionPhoto)
-      }
-
-      fetch(`/api/department/complaints/${complaint.id}`, {
-        method: 'PUT',
-        body: formData,
-      })
-
-      Do not manually set Content-Type when using FormData.
-      The browser will set the correct multipart boundary.
-
-      Show success ONLY after Flask returns a successful response.
-    */
-
-    setSuccess(true)
-
-    setTimeout(() => {
-      setSuccess(false)
-    }, 3000)
+    setResolutionPhoto(file)
+    const reader = new FileReader()
+    reader.onload = () => {
+      setResolutionPhotoPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
   }
 
-  /*
-    DATABASE TABLES REQUIRED:
+  const handleUpdate = () => {
+    setError(null)
+    setNotice(null)
 
-    complaints
-    - complaint_id
-    - citizen_id
-    - title
-    - category
-    - subcategory
-    - description
-    - location
-    - department_id
-    - status
-    - created_at
-    - updated_at
-    - resolution_info
-    - resolved_at
-    - resolved_by
+    if (status === 'Resolved' && !resolution.trim()) {
+      setError('Please provide resolution details and work description before closing the ticket as Resolved.')
+      return
+    }
 
-    users
-    - user_id
-    - name
-    - email
-    - password_hash
-    - role
-    - department_id
+    setNotice(
+      `Work order status updated to "${status}" in evaluation mode! Real database update and citizen notifications will be executed in Phase 4 via PHP REST API.`
+    )
+  }
 
-    departments
-    - department_id
-    - department_name
-
-    complaint_status_history
-    - history_id
-    - complaint_id
-    - status
-    - remarks
-    - changed_by
-    - changed_at
-
-    complaint_photos
-    - photo_id
-    - complaint_id
-    - photo_type
-    - file_path
-    - uploaded_by
-    - uploaded_at
-
-    notifications
-    - notification_id
-    - recipient_user_id
-    - complaint_id
-    - message
-    - type
-    - is_read
-    - created_at
-  */
-
-  /*
-    STATUS HISTORY:
-
-    Every important status change should create a new
-    record in complaint_status_history.
-
-    Example:
-
-    CC-1024 | Assigned | Department received complaint
-    CC-1024 | In Progress | Repair work started
-    CC-1024 | Resolved | Pothole repaired
-
-    Do NOT overwrite old history records.
-
-    The citizen timeline will later read these records
-    using an API such as:
-
-    GET /api/citizen/complaints/:complaint_id/timeline
-  */
+  const deptName = departmentUser?.name || 'Department Officer'
 
   if (!departmentUser) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg ring-1 ring-slate-200">
-
-          <div className="text-5xl">
-            🔐
-          </div>
-
-          <h1 className="mt-4 text-2xl font-bold text-slate-900">
-            Login Required
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Please sign in to access department complaints.
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg border border-slate-200">
+          <div className="text-4xl mb-3">🔐</div>
+          <h1 className="text-xl font-bold text-slate-900">Sign In Required</h1>
+          <p className="mt-2 text-xs sm:text-sm text-slate-500">
+            Please sign in to access department work orders and update repair milestones.
           </p>
-
           <button
             type="button"
-            onClick={() => navigate('/')}
-            className="mt-6 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+            onClick={() => navigate('/login')}
+            className="mt-6 w-full rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 transition"
           >
-            Go to Login
+            Go to Department Sign In
           </button>
-
         </div>
-
-      </div>
-    )
-  }
-
-  /*
-    UNAUTHORIZED COMPLAINT:
-
-    If the complaint does not belong to the logged-in
-    department, access is blocked.
-
-    FINAL BACKEND:
-    Flask must perform the same authorization check
-    before returning complaint details or accepting updates.
-  */
-
-  if (!complaint || !isAuthorized) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg ring-1 ring-slate-200">
-
-          <div className="text-5xl">
-            🚫
-          </div>
-
-          <h1 className="mt-4 text-2xl font-bold text-slate-900">
-            Access Restricted
-          </h1>
-
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            This complaint is not assigned to your department or could not be
-            found.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => navigate('/department/dashboard')}
-            className="mt-6 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            Back to Dashboard
-          </button>
-
-        </div>
-
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      <PortalNavbar role="department" userName={deptName} userSubtitle="Work Order Manager" />
 
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
-
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-xl text-white">
-              🏛️
-            </div>
-
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">
-                CivicResolve
-              </h1>
-
-              <p className="text-xs text-slate-500">
-                Department Portal
-              </p>
-            </div>
-
-          </div>
-
+      <main className="flex-1 mx-auto max-w-6xl w-full px-4 sm:px-6 py-8 animate-fade-in">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 mb-6">
           <button
             type="button"
             onClick={() => navigate('/department/dashboard')}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="hover:text-emerald-700 transition"
           >
-            ← Dashboard
+            Work Orders
           </button>
-
+          <span>/</span>
+          <span className="font-semibold text-slate-800">
+            Order #{id || 'Record'}
+          </span>
         </div>
 
-      </header>
-
-      {/* Main */}
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-
-        {/* Heading */}
-        <div className="mb-6">
-
-          <p className="text-sm font-medium text-blue-600">
-            Complaint Details
-          </p>
-
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-
-            <h2 className="text-3xl font-bold text-slate-900">
-              {complaint.id}
-            </h2>
-
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                status,
-              )}`}
-            >
-              {status}
-            </span>
-
+        {!complaint ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 sm:p-12 shadow-sm">
+            <EmptyState
+              icon="🛠️"
+              title={`Work Order #${id || ''} Not Loaded`}
+              description="This work order is either awaiting database synchronization or is assigned to a different department. In Phase 4, the PHP REST API will authenticate and retrieve assigned complaints directly from MySQL."
+              actionLabel="Return to Work Orders Queue"
+              onAction={() => navigate('/department/dashboard')}
+            />
           </div>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Review the complaint and update its progress.
-          </p>
-
-        </div>
-
-        {/* Success */}
-        {success && (
-          <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-            Complaint updated successfully.
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="grid gap-6 lg:grid-cols-3">
-
-          {/* Complaint Information */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 lg:col-span-2">
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
+        ) : (
+          <div className="space-y-6">
+            {/* Header Card */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-7 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-
-                <p className="text-sm text-slate-500">
-                  Complaint Title
-                </p>
-
-                <h3 className="mt-1 text-2xl font-bold text-slate-900">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="font-mono text-sm font-bold text-emerald-700">
+                    #{complaint.id}
+                  </span>
+                  <StatusBadge status={status} />
+                  <span className="text-xs text-slate-400">
+                    Assigned: {complaint.date}
+                  </span>
+                </div>
+                <h1 className="mt-2 text-xl sm:text-2xl font-extrabold text-slate-900">
                   {complaint.title}
-                </h3>
-
+                </h1>
               </div>
 
-              <div className="rounded-xl bg-blue-50 px-4 py-3 text-center">
-
-                <p className="text-xs text-blue-600">
-                  Submitted
-                </p>
-
-                <p className="mt-1 text-sm font-semibold text-blue-800">
-                  {complaint.date}
-                </p>
-
-              </div>
-
+              <button
+                type="button"
+                onClick={() => navigate('/department/dashboard')}
+                className="self-start sm:self-auto rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+              >
+                ← Back to Orders
+              </button>
             </div>
 
-            {/* Basic Information */}
-            <div className="mt-6 grid gap-5 sm:grid-cols-2">
-
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Category
-                </p>
-
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  {complaint.category}
-                </p>
+            {notice && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs sm:text-sm text-emerald-900 animate-fade-in">
+                <strong>Department Update:</strong> {notice}
               </div>
+            )}
 
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Location
-                </p>
-
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  {complaint.location}
-                </p>
+            {error && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs sm:text-sm text-rose-700 animate-fade-in">
+                <strong>Attention Required:</strong> {error}
               </div>
+            )}
 
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Citizen
-                </p>
+            {/* Main Content Layout */}
+            <div className="grid gap-6 lg:grid-cols-12">
+              {/* Left Column: Complaint Details & Inspection Photos */}
+              <div className="lg:col-span-7 space-y-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">
+                    Defect Information
+                  </h2>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {complaint.description}
+                  </p>
 
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  {complaint.citizen}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Department
-                </p>
-
-                <p className="mt-1 text-sm font-medium text-slate-800">
-                  {complaint.department}
-                </p>
-              </div>
-
-            </div>
-
-            {/* Description */}
-            <div className="mt-6 border-t border-slate-200 pt-6">
-
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Description
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                {complaint.description}
-              </p>
-
-            </div>
-
-            {/*
-              COMPLAINT PHOTO:
-
-              Current UI only shows a placeholder.
-
-              FINAL BACKEND:
-
-              Get citizen-uploaded complaint photos from:
-
-              GET /api/department/complaints/:complaint_id/photos
-
-              Suggested database table:
-              complaint_photos
-
-              The backend should return the stored file URL/path.
-
-              Do not store large image files directly inside MySQL.
-              Store the file in server/cloud storage and save its
-              path or URL in MySQL.
-            */}
-
-            {/* Complaint Photo */}
-            <div className="mt-6">
-
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Complaint Photo
-              </p>
-
-              <div className="mt-2 flex h-56 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50">
-
-                <div className="text-center">
-
-                  <div className="text-4xl">
-                    📷
+                  <div className="mt-6 pt-5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-slate-400">Category</span>
+                      <p className="font-bold text-slate-800 mt-0.5">{complaint.category}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Site Location</span>
+                      <p className="font-bold text-slate-800 mt-0.5">{complaint.location}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Reporting Citizen</span>
+                      <p className="font-bold text-slate-800 mt-0.5">{complaint.citizen}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Handling Department</span>
+                      <p className="font-bold text-emerald-700 mt-0.5">{complaint.department}</p>
+                    </div>
                   </div>
-
-                  <p className="mt-2 text-sm font-medium text-slate-600">
-                    Complaint image preview
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    Citizen uploaded image will appear here after backend
-                    integration.
-                  </p>
-
                 </div>
 
+                {/* Citizen Photo */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3">
+                    Citizen Submission Photo
+                  </h2>
+                  <div className="h-44 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-xs text-slate-400">
+                    {complaint.photoUrl ? 'Citizen Photo Evidence Attached' : 'No Photo Uploaded with Report'}
+                  </div>
+                </div>
               </div>
 
-            </div>
+              {/* Right Column: Work Order Action Panel */}
+              <div className="lg:col-span-5 space-y-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Work Order Resolution Panel
+                  </h2>
 
-          </section>
+                  {/* Status update */}
+                  <div>
+                    <label htmlFor="dept-status" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Update Operational Status *
+                    </label>
+                    <select
+                      id="dept-status"
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as ComplaintStatus)}
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                    >
+                      <option value="Assigned">Assigned (Received by Team)</option>
+                      <option value="In Progress">In Progress (Crews on Site)</option>
+                      <option value="Resolved">Resolved (Work Completed)</option>
+                    </select>
+                  </div>
 
-          {/* Update Panel */}
-          <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                  {/* Field remarks */}
+                  <div>
+                    <label htmlFor="field-remarks" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Field Notes / Progress Remarks
+                    </label>
+                    <textarea
+                      id="field-remarks"
+                      rows={3}
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Add inspection notes or expected repair timeline..."
+                      className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 resize-none"
+                    />
+                  </div>
 
-            <h3 className="text-xl font-semibold text-slate-900">
-              Update Complaint
-            </h3>
+                  {/* Resolution info */}
+                  {status === 'Resolved' && (
+                    <div className="animate-fade-in space-y-4 pt-2 border-t border-slate-100">
+                      <div>
+                        <label htmlFor="res-info" className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Resolution Summary * (Required)
+                        </label>
+                        <textarea
+                          id="res-info"
+                          rows={3}
+                          value={resolution}
+                          onChange={(e) => setResolution(e.target.value)}
+                          placeholder="Detail the repair actions executed by the field team..."
+                          required
+                          className="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 resize-none"
+                        />
+                      </div>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Update the current progress and resolution information.
-            </p>
+                      {/* Resolution Photo Upload */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Attach Completion Proof Photo (Optional)
+                        </label>
 
-            {/*
-              STATUS UPDATE:
+                        {resolutionPhotoPreview ? (
+                          <div className="rounded-xl border border-slate-200 p-3 bg-slate-50 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <img
+                                src={resolutionPhotoPreview}
+                                alt="Resolution preview"
+                                className="h-12 w-12 rounded object-cover border"
+                              />
+                              <p className="text-xs font-semibold text-slate-800 truncate max-w-[140px]">
+                                {resolutionPhoto?.name}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedResolutionPhoto(null)}
+                              className="text-xs text-rose-600 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center cursor-pointer hover:bg-slate-100/70 transition">
+                            <span className="text-lg mb-1">📷</span>
+                            <span className="text-xs text-slate-600 font-medium">Upload After-Repair Proof</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePhotoSelect}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-              Final allowed flow:
-
-              Submitted
-                  ↓
-              Verified
-                  ↓
-              Assigned
-                  ↓
-              In Progress
-                  ↓
-              Resolved
-                  ↓
-              Closed
-
-              Department should only be allowed to perform
-              the status changes permitted by the final
-              project rules.
-
-              Flask must validate the status transition.
-              Do not rely only on the select box.
-            */}
-
-            {/* Status */}
-            <div className="mt-6">
-
-              <label
-                htmlFor="status"
-                className="mb-2 block text-sm font-medium text-slate-700"
-              >
-                Complaint Status
-              </label>
-
-              <select
-                id="status"
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value as ComplaintStatus)
-                  setError('')
-                  setSuccess(false)
-                }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="Submitted">
-                  Submitted
-                </option>
-
-                <option value="Assigned">
-                  Assigned
-                </option>
-
-                <option value="In Progress">
-                  In Progress
-                </option>
-
-                <option value="Resolved">
-                  Resolved
-                </option>
-              </select>
-
-            </div>
-
-            {/*
-              REMARKS:
-
-              Current remarks are temporary React state.
-
-              FINAL BACKEND:
-
-              Save department remarks in the database.
-
-              Suggested table:
-
-              complaint_remarks
-              - remark_id
-              - complaint_id
-              - user_id
-              - remark
-              - created_at
-
-              OR remarks can be stored along with
-              complaint_status_history when the remark
-              belongs to a status update.
-
-              Every remark should be associated with
-              the department user who created it.
-            */}
-
-            {/* Remarks */}
-            <div className="mt-5">
-
-              <label
-                htmlFor="remarks"
-                className="mb-2 block text-sm font-medium text-slate-700"
-              >
-                Remarks
-              </label>
-
-              <textarea
-                id="remarks"
-                value={remarks}
-                onChange={(e) => {
-                  setRemarks(e.target.value)
-                  setError('')
-                  setSuccess(false)
-                }}
-                rows={5}
-                placeholder="Enter work progress or remarks..."
-                className="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-
-            </div>
-
-            {/*
-              RESOLUTION:
-
-              Resolution details should be saved in the
-              complaints table when the complaint is resolved.
-
-              Suggested fields:
-
-              resolution_info
-              resolved_at
-              resolved_by
-
-              Backend should record which department user
-              marked the complaint as resolved.
-
-              Citizen should be able to see this information
-              on the Complaint Details page.
-            */}
-
-            {/* Resolution */}
-            <div className="mt-5">
-
-              <label
-                htmlFor="resolution"
-                className="mb-2 block text-sm font-medium text-slate-700"
-              >
-                Resolution Details
-              </label>
-
-              <textarea
-                id="resolution"
-                value={resolution}
-                onChange={(e) => {
-                  setResolution(e.target.value)
-                  setError('')
-                  setSuccess(false)
-                }}
-                rows={4}
-                placeholder="Enter resolution details..."
-                className="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-
-              {status === 'Resolved' && (
-                <p className="mt-1.5 text-xs text-slate-400">
-                  Resolution details are required when marking a complaint as
-                  resolved.
-                </p>
-              )}
-
-            </div>
-
-            {/*
-              RESOLUTION PHOTO:
-
-              Current file is stored only in React memory.
-
-              FINAL BACKEND:
-
-              Send the image using multipart/form-data.
-
-              Flask should:
-              1. Validate file type.
-              2. Validate file size.
-              3. Store the image safely.
-              4. Save its path/URL in complaint_photos.
-              5. Link it to the complaint ID.
-              6. Record which department user uploaded it.
-
-              Example:
-              photo_type = "resolution"
-            */}
-
-            {/* Resolution Photo */}
-            <div className="mt-5">
-
-              <label
-                htmlFor="resolution-photo"
-                className="mb-2 block text-sm font-medium text-slate-700"
-              >
-                Resolution Photo
-              </label>
-
-              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
-
-                <input
-                  id="resolution-photo"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null
-                    setResolutionPhoto(file)
-                    setSuccess(false)
-                  }}
-                  className="w-full text-sm text-slate-500"
-                />
-
-                {resolutionPhoto && (
-                  <p className="mt-2 truncate text-xs font-medium text-blue-600">
-                    Selected: {resolutionPhoto.name}
-                  </p>
-                )}
-
-                <p className="mt-2 text-xs text-slate-400">
-                  Resolution image upload will be connected to backend later.
-                </p>
-
+                  {/* Update button */}
+                  <button
+                    type="button"
+                    onClick={handleUpdate}
+                    className="w-full rounded-xl bg-emerald-700 py-3 text-xs font-bold text-white shadow-sm hover:bg-emerald-800 transition active:scale-[0.99]"
+                  >
+                    Update Work Order Status
+                  </button>
+                </div>
               </div>
-
             </div>
-
-            {/*
-              NOTIFICATIONS:
-
-              After a successful update, Flask should create
-              notifications where required.
-
-              Examples:
-
-              Status changed:
-              "Complaint CC-1024 is now In Progress."
-
-              Resolved:
-              "Complaint CC-1024 has been resolved."
-
-              Suggested APIs/tables:
-
-              notifications table
-              - notification_id
-              - recipient_user_id
-              - complaint_id
-              - message
-              - type
-              - is_read
-              - created_at
-
-              Citizen notification:
-              recipient = complaint.citizen_id
-
-              Admin notification:
-              recipient = Admin user
-
-              The frontend should show success only after
-              the backend confirms that the update was saved.
-            */}
-
-            {/* Update Button */}
-            <button
-              type="button"
-              onClick={handleUpdate}
-              className="mt-6 w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 active:scale-[0.99]"
-            >
-              Update Complaint
-            </button>
-
-          </section>
-
-        </div>
-
+          </div>
+        )}
       </main>
-
     </div>
   )
 }

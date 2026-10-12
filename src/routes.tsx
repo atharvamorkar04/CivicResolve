@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 
 import LandingPage from './pages/LandingPage'
+import Login from './pages/Login'
 
 import Register from './pages/citizen/Register'
 import Home from './pages/citizen/Home'
 import Dashboard from './pages/citizen/Dashboard'
-import ReportIssue from './pages/citizen/ReportIssueTemp'
+import ReportIssue from './pages/citizen/ReportIssue'
 import MyComplaints from './pages/citizen/MyComplaints'
 import ComplaintsDetails from './pages/citizen/ComplaintsDetails'
 
@@ -31,7 +32,7 @@ function ProtectedRoute({
   const userRole = localStorage.getItem('userRole')
 
   if (userRole !== allowedRole) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/login" replace />
   }
 
   return children
@@ -44,7 +45,7 @@ function AppRoutes() {
 
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
-
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
         {/* Citizen */}
