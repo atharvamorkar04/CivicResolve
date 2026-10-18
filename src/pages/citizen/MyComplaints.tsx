@@ -1,27 +1,35 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PortalNavbar from '../../components/common/PortalNavbar'
 import StatusBadge from '../../components/common/StatusBadge'
 import EmptyState from '../../components/common/EmptyState'
-
-interface CitizenComplaint {
-  id: string
-  title: string
-  category: string
-  subcategory?: string
-  date: string
-  status: 'Submitted' | 'Assigned' | 'In Progress' | 'Resolved' | 'Rejected'
-  department?: string
-  location?: string
-}
+import { api, type Complaint } from '../../api/client'
 
 function MyComplaints() {
   const navigate = useNavigate()
 
-  // State
-  const [complaints] = useState<CitizenComplaint[]>([])
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+
+  const loadComplaints = async () => {
+    setIsLoading(true)
+    setFetchError(null)
+    try {
+      const data = await api.complaints.getMyComplaints()
+      setComplaints(data)
+    } catch (err: any) {
+      setFetchError(err.message || 'Failed to load your complaints from the server.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadComplaints()
+  }, [])
 
   // Filter logic
   const filteredComplaints = useMemo(() => {
@@ -29,8 +37,9 @@ function MyComplaints() {
       const matchesSearch =
         !search.trim() ||
         item.title.toLowerCase().includes(search.toLowerCase()) ||
-        item.id.toLowerCase().includes(search.toLowerCase()) ||
-        item.category.toLowerCase().includes(search.toLowerCase())
+        String(item.complaint_id).includes(search) ||
+        (item.category_name && item.category_name.toLowerCase().includes(search.toLowerCase())) ||
+        (item.address && item.address.toLowerCase().includes(search.toLowerCase()))
 
       const matchesStatus =
         statusFilter === 'all' || item.status.toLowerCase().replace(' ', '-') === statusFilter
@@ -51,7 +60,7 @@ function MyComplaints() {
               My Complaints
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-500">
-              Track the progress, departmental notes, and verified closure of your reported civic issues.
+              Track real-time progress, departmental allocations, and verification updates for your reported civic issues.
             </p>
           </div>
 
@@ -63,6 +72,22 @@ function MyComplaints() {
             <span>➕</span> Report New Issue
           </button>
         </div>
+
+        {/* Error Notice */}
+        {fetchError && (
+          <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs sm:text-sm text-rose-800 flex items-center justify-between gap-4">
+            <div>
+              <strong>Connection Error:</strong> {fetchError}
+            </div>
+            <button
+              type="button"
+              onClick={loadComplaints}
+              className="rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Search & Status Filters */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm mb-6">
@@ -85,10 +110,11 @@ function MyComplaints() {
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
               {[
                 { id: 'all', label: 'All Complaints' },
-                { id: 'submitted', label: 'Submitted' },
-                { id: 'assigned', label: 'Assigned' },
+                { id: 'pending', label: 'Pending' },
+                { id: 'approved', label: 'Approved' },
                 { id: 'in-progress', label: 'In Progress' },
                 { id: 'resolved', label: 'Resolved' },
+                { id: 'rejected', label: 'Rejected' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -107,22 +133,32 @@ function MyComplaints() {
           </div>
         </div>
 
-        {/* Complaint Records List or Empty State */}
-        {filteredComplaints.length > 0 ? (
+        {/* Loading Spinner */}
+        {isLoading ? (
+          <div className="py-16 flex flex-col items-center justify-center text-slate-400">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mb-3" />
+            <p className="text-xs font-semibold">Loading complaints from database...</p>
+          </div>
+        ) : filteredComplaints.length > 0 ? (
           <div className="space-y-4">
             {filteredComplaints.map((item) => (
               <div
-                key={item.id}
+                key={item.complaint_id}
                 className="civic-card-hover rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4"
               >
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="text-xs font-bold text-blue-700 font-mono">
-                      #{item.id}
+                      #{item.complaint_id}
                     </span>
                     <StatusBadge status={item.status} size="sm" />
+                    {item.priority === 'Urgent' && (
+                      <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
+                        ⚠️ URGENT
+                      </span>
+                    )}
                     <span className="text-[11px] text-slate-400">
-                      Reported: {item.date}
+                      Reported: {new Date(item.created_at).toLocaleDateString()}
                     </span>
                   </div>
 
@@ -132,16 +168,16 @@ function MyComplaints() {
 
                   <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                     <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-700 font-medium">
-                      📂 {item.category}
+                      📂 {item.category_name} {item.subcategory_name ? `(${item.subcategory_name})` : ''}
                     </span>
-                    {item.department && (
+                    {item.department_name && (
                       <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-700 font-medium">
-                        🏛️ {item.department}
+                        🏛️ {item.department_name}
                       </span>
                     )}
-                    {item.location && (
-                      <span className="text-slate-500">
-                        📍 {item.location}
+                    {item.address && (
+                      <span className="text-slate-500 truncate max-w-sm">
+                        📍 {item.address}
                       </span>
                     )}
                   </div>
@@ -149,10 +185,10 @@ function MyComplaints() {
 
                 <button
                   type="button"
-                  onClick={() => navigate(`/complaint/${item.id}`)}
+                  onClick={() => navigate(`/complaint/${item.complaint_id}`)}
                   className="self-start md:self-auto rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition whitespace-nowrap"
                 >
-                  View Details & Status →
+                  View Details & History →
                 </button>
               </div>
             ))}

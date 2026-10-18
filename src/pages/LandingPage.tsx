@@ -106,11 +106,10 @@ function LandingPage() {
               <a
                 key={item.id}
                 href={`#${item.id}`}
-                className={`px-3 py-2 rounded-lg transition-all ${
-                  activeSection === item.id
+                className={`px-3 py-2 rounded-lg transition-all ${activeSection === item.id
                     ? 'text-blue-700 font-semibold bg-blue-50/70'
                     : 'hover:text-blue-700 hover:bg-slate-100/70'
-                }`}
+                  }`}
               >
                 {item.label}
               </a>
@@ -190,11 +189,10 @@ function LandingPage() {
                   key={item.id}
                   href={`#${item.id}`}
                   onClick={closeMobileMenu}
-                  className={`px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                    activeSection === item.id
+                  className={`px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeSection === item.id
                       ? 'bg-blue-50 text-blue-700 font-semibold'
                       : 'text-slate-700 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   {item.label}
                 </a>
@@ -1085,9 +1083,7 @@ function LandingPage() {
                 A digital platform for civic issue management, connecting citizens with municipal
                 administration for swift, transparent grievance redressal.
               </p>
-              <p className="text-[11px] text-slate-500">
-                Built with React, TypeScript & Vite.
-              </p>
+
             </div>
 
             {/* Platform Navigation */}

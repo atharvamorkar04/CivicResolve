@@ -1,62 +1,76 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PortalNavbar from '../../components/common/PortalNavbar'
 import StatusBadge from '../../components/common/StatusBadge'
 import EmptyState from '../../components/common/EmptyState'
-
-type ComplaintStatus =
-  | 'Submitted'
-  | 'Assigned'
-  | 'In Progress'
-  | 'Resolved'
-  | 'Rejected'
-
-interface DepartmentComplaint {
-  id: string
-  title: string
-  category: string
-  location: string
-  status: ComplaintStatus
-  date: string
-  department: string
-  priority?: string
-}
-
-interface DepartmentUser {
-  name: string
-  email?: string
-}
+import { useAuth } from '../../context/AuthContext'
+import { api, type Complaint, type DepartmentMetrics } from '../../api/client'
 
 function DepartmentDashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
 
-  // Read stored department user
-  const storedDepartment = localStorage.getItem('departmentUser')
-  let departmentUser: DepartmentUser | null = null
-
-  if (storedDepartment) {
-    try {
-      departmentUser = JSON.parse(storedDepartment)
-    } catch {
-      localStorage.removeItem('departmentUser')
-    }
-  }
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [metrics, setMetrics] = useState<DepartmentMetrics>({
+    total: 0,
+    pending_action: 0,
+    in_progress: 0,
+    resolved: 0,
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
-  // Empty state pending MySQL records
-  const [complaints] = useState<DepartmentComplaint[]>([])
+  const [serverDeptName, setServerDeptName] = useState<string | null>(null)
 
-  const deptName = departmentUser?.name || 'Municipal Department'
+  const loadData = async () => {
+    setIsLoading(true)
+    setFetchError(null)
+    try {
+      const res = await api.department.getComplaints()
+      setComplaints(res.complaints)
+      setMetrics(res.metrics)
+      if (res.department_name) {
+        setServerDeptName(res.department_name)
+      }
+    } catch (err: any) {
+      setFetchError(err.message || 'Failed to load department work orders.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const DEPARTMENT_NAMES: Record<number, string> = {
+    1: 'Road & Infrastructure',
+    2: 'Water Supply & Quality',
+    3: 'Electrical & Street Lighting',
+    4: 'Solid Waste & Sanitation',
+    5: 'Drainage & Sewage',
+    6: 'Parks & Public Gardens',
+    7: 'Public Safety & Hazards',
+  }
+
+  const deptName =
+    serverDeptName ||
+    user?.department_name ||
+    (user?.department_id ? DEPARTMENT_NAMES[user.department_id] : null) ||
+    'Department Operations'
 
   const filteredComplaints = useMemo(() => {
+    const searchText = search.trim().toLowerCase()
+
     return complaints.filter((item) => {
       const matchesSearch =
-        !search.trim() ||
-        item.title.toLowerCase().includes(search.toLowerCase()) ||
-        item.id.toLowerCase().includes(search.toLowerCase()) ||
-        item.location.toLowerCase().includes(search.toLowerCase())
+        !searchText ||
+        item.title.toLowerCase().includes(searchText) ||
+        String(item.complaint_id).includes(searchText) ||
+        (item.address && item.address.toLowerCase().includes(searchText))
 
       const matchesStatus =
         statusFilter === 'all' || item.status.toLowerCase().replace(' ', '-') === statusFilter
@@ -65,34 +79,12 @@ function DepartmentDashboard() {
     })
   }, [complaints, search, statusFilter])
 
-  // Not logged in gate
-  if (!departmentUser) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg border border-slate-200">
-          <div className="text-4xl mb-3">🏛️</div>
-          <h1 className="text-xl font-bold text-slate-900">Department Portal Sign In Required</h1>
-          <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">
-            Please sign in with authorized department credentials to review assigned municipal work orders.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate('/login')}
-            className="mt-6 w-full rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 transition"
-          >
-            Go to Department Sign In
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       <PortalNavbar
         role="department"
         userName={deptName}
-        userSubtitle={departmentUser.email || 'Field Maintenance Supervisor'}
+        userSubtitle={user?.name || user?.email || 'Operations Desk'}
       />
 
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
@@ -101,10 +93,10 @@ function DepartmentDashboard() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="space-y-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-400/30">
-                Department Operations Desk
+                {deptName} Desk
               </span>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                {deptName}
+                {deptName} Dashboard
               </h1>
               <p className="text-sm sm:text-base text-slate-300 max-w-xl">
                 Field queue for assigned civic work orders. Inspect reported defects, dispatch repair crews, update status notes, and upload verified completion photos.
@@ -119,20 +111,42 @@ function DepartmentDashboard() {
           </div>
         </div>
 
+        {/* Server Fetch Error Alert */}
+        {fetchError && (
+          <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h3 className="text-sm font-bold">Failed to Fetch Department Work Orders</h3>
+                <p className="text-xs text-rose-700 mt-0.5">{fetchError}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={loadData}
+              className="self-start sm:self-auto rounded-xl bg-rose-700 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-800 transition"
+            >
+              Retry Connection
+            </button>
+          </div>
+        )}
+
         {/* Work Order KPI Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Assigned Orders', val: 0, sub: 'Total assigned cases', color: 'text-slate-900', icon: '📋' },
-            { label: 'Pending Action', val: 0, sub: 'Awaiting site inspection', color: 'text-purple-600', icon: '⏳' },
-            { label: 'In Progress', val: 0, sub: 'Crews dispatched on-site', color: 'text-amber-600', icon: '🛠️' },
-            { label: 'Resolved & Closed', val: 0, sub: 'Completed this month', color: 'text-emerald-600', icon: '✅' },
+            { label: 'Assigned Orders', val: metrics.total, sub: 'Total assigned cases', color: 'text-slate-900', icon: '📋' },
+            { label: 'Pending Action', val: metrics.pending_action, sub: 'Awaiting site inspection', color: 'text-purple-600', icon: '⏳' },
+            { label: 'In Progress', val: metrics.in_progress, sub: 'Crews dispatched on-site', color: 'text-amber-600', icon: '🛠️' },
+            { label: 'Resolved & Closed', val: metrics.resolved, sub: 'Completed this period', color: 'text-emerald-600', icon: '✅' },
           ].map((st) => (
             <div key={st.label} className="civic-card-hover rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{st.label}</span>
                 <span className="text-lg">{st.icon}</span>
               </div>
-              <p className={`mt-3 text-3xl font-extrabold ${st.color}`}>{st.val}</p>
+              <p className={`mt-3 text-3xl font-extrabold ${st.color}`}>
+                {isLoading ? '...' : st.val}
+              </p>
               <p className="mt-1 text-[11px] text-slate-400">{st.sub}</p>
             </div>
           ))}
@@ -157,7 +171,7 @@ function DepartmentDashboard() {
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
               {[
                 { id: 'all', label: 'All Orders' },
-                { id: 'assigned', label: 'Assigned' },
+                { id: 'approved', label: 'Approved (Pending Action)' },
                 { id: 'in-progress', label: 'In Progress' },
                 { id: 'resolved', label: 'Resolved' },
               ].map((tab) => (
@@ -179,7 +193,12 @@ function DepartmentDashboard() {
         </div>
 
         {/* Work Order Records or Empty State */}
-        {filteredComplaints.length > 0 ? (
+        {isLoading ? (
+          <div className="py-20 flex flex-col items-center justify-center text-slate-400">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent mb-3" />
+            <p className="text-xs font-semibold">Loading assigned work orders...</p>
+          </div>
+        ) : filteredComplaints.length > 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-700">
@@ -195,18 +214,18 @@ function DepartmentDashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredComplaints.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50 transition">
+                    <tr key={item.complaint_id} className="hover:bg-slate-50 transition">
                       <td className="px-6 py-4 font-mono font-bold text-emerald-700">
-                        #{item.id}
+                        #{item.complaint_id}
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-900 max-w-xs truncate">
                         {item.title}
                       </td>
                       <td className="px-6 py-4 text-xs text-slate-600">
-                        📍 {item.location}
+                        📍 {item.address || 'Location on map'}
                       </td>
                       <td className="px-6 py-4 text-xs text-slate-400">
-                        {item.date}
+                        {new Date(item.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={item.status} size="sm" />
@@ -214,7 +233,7 @@ function DepartmentDashboard() {
                       <td className="px-6 py-4 text-right">
                         <button
                           type="button"
-                          onClick={() => navigate(`/department/complaint/${item.id}`)}
+                          onClick={() => navigate(`/department/complaint/${item.complaint_id}`)}
                           className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition"
                         >
                           Manage Work Order →
@@ -229,18 +248,18 @@ function DepartmentDashboard() {
             {/* Mobile Stacked View */}
             <div className="md:hidden divide-y divide-slate-100 p-4 space-y-4">
               {filteredComplaints.map((item) => (
-                <div key={item.id} className="pt-3 space-y-2">
+                <div key={item.complaint_id} className="pt-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-bold text-emerald-700">
-                      #{item.id}
+                      #{item.complaint_id}
                     </span>
                     <StatusBadge status={item.status} size="sm" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
-                  <p className="text-xs text-slate-500">📍 {item.location}</p>
+                  <p className="text-xs text-slate-500">📍 {item.address || 'Site'}</p>
                   <button
                     type="button"
-                    onClick={() => navigate(`/department/complaint/${item.id}`)}
+                    onClick={() => navigate(`/department/complaint/${item.complaint_id}`)}
                     className="w-full mt-2 rounded-lg bg-emerald-50 border border-emerald-200 py-2 text-xs font-semibold text-emerald-800 text-center"
                   >
                     Manage Work Order →
@@ -253,7 +272,7 @@ function DepartmentDashboard() {
           <EmptyState
             icon="🛠️"
             title="Department Queue is Up to Date"
-            description={`There are currently zero open work orders assigned to the ${deptName}. Newly routed tickets from the administrative triage console will appear here.`}
+            description={`There are currently zero open work orders matching this filter assigned to the ${deptName}. Newly routed tickets from the administrative triage console will appear here.`}
             actionLabel={search || statusFilter !== 'all' ? 'Reset Filters' : undefined}
             onAction={() => {
               setSearch('')

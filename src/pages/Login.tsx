@@ -1,40 +1,21 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-
-type PortalRole = 'citizen' | 'admin' | 'department'
-
-const DEPARTMENT_OPTIONS = [
-  'Road & Infrastructure',
-  'Water Supply & Sanitation',
-  'Electrical & Street Lighting',
-  'Solid Waste Management',
-  'Drainage & Sewage',
-  'Parks & Public Gardens',
-  'Public Safety & Health',
-]
+import { useAuth } from '../context/AuthContext'
 
 function Login() {
   const navigate = useNavigate()
+  const { login } = useAuth()
 
-  const [selectedRole, setSelectedRole] = useState<PortalRole>('citizen')
-  const [selectedDept, setSelectedDept] = useState(DEPARTMENT_OPTIONS[0])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [infoNotice, setInfoNotice] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleRoleChange = (role: PortalRole) => {
-    setSelectedRole(role)
-    setError('')
-    setInfoNotice(null)
-  }
-
-  const handleLogin = (e: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
-    setInfoNotice(null)
 
     const trimmedEmail = email.trim()
 
@@ -43,30 +24,26 @@ function Login() {
       return
     }
 
-    // NOTICE AS PER PHASE 2 SPECIFICATION:
-    // Real authentication with PHP + MySQL database is scheduled for Phase 3.
-    // Client-side authentication simulation is clearly separated.
-    localStorage.setItem('userRole', selectedRole)
-    if (selectedRole === 'department') {
-      localStorage.setItem(
-        'departmentUser',
-        JSON.stringify({ name: selectedDept, email: trimmedEmail })
-      )
-    }
+    setIsSubmitting(true)
 
-    setInfoNotice(
-      `Notice: Authentication backend connection is scheduled for Phase 3. Entering ${selectedRole} portal in interface evaluation mode.`
-    )
+    try {
+      const user = await login(trimmedEmail, password)
 
-    setTimeout(() => {
-      if (selectedRole === 'citizen') {
+      // Direct to corresponding portal based on verified account role
+      if (user.role === 'citizen') {
         navigate('/dashboard')
-      } else if (selectedRole === 'admin') {
+      } else if (user.role === 'admin') {
         navigate('/admin/dashboard')
-      } else {
+      } else if (user.role === 'department') {
         navigate('/department/dashboard')
+      } else {
+        navigate('/dashboard')
       }
-    }, 600)
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -122,92 +99,9 @@ function Login() {
                 Sign In to CivicResolve
               </h1>
               <p className="mt-1.5 text-sm text-slate-500">
-                Select your designated portal role to continue
+                Enter your credentials to access your designated portal
               </p>
             </div>
-
-            {/* Role Switcher Tabs */}
-            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 mb-6 text-xs sm:text-sm font-medium">
-              <button
-                type="button"
-                onClick={() => handleRoleChange('citizen')}
-                className={`py-2 px-2 rounded-lg text-center transition ${
-                  selectedRole === 'citizen'
-                    ? 'bg-white font-semibold text-blue-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Citizen
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRoleChange('admin')}
-                className={`py-2 px-2 rounded-lg text-center transition ${
-                  selectedRole === 'admin'
-                    ? 'bg-white font-semibold text-blue-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRoleChange('department')}
-                className={`py-2 px-2 rounded-lg text-center transition ${
-                  selectedRole === 'department'
-                    ? 'bg-white font-semibold text-blue-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Department
-              </button>
-            </div>
-
-            {/* Role Context Helper */}
-            <div className="mb-5 rounded-lg bg-slate-50 p-3 text-xs text-slate-600 border border-slate-200/60 flex items-start gap-2">
-              <span className="text-blue-600 font-bold">ℹ</span>
-              <div>
-                {selectedRole === 'citizen' && (
-                  <p>
-                    <strong>Citizen Portal:</strong> Submit civic grievances, upload photo evidence, and track real-time resolution progress.
-                  </p>
-                )}
-                {selectedRole === 'admin' && (
-                  <p>
-                    <strong>Municipal Admin Portal:</strong> Verify reported issues, triage priority, allocate to departments, and review city-wide analytics.
-                  </p>
-                )}
-                {selectedRole === 'department' && (
-                  <p>
-                    <strong>Department Portal:</strong> Review assigned work orders, update field repair milestones, and attach resolution documentation.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Department Selection for Department Role */}
-            {selectedRole === 'department' && (
-              <div className="mb-4">
-                <label
-                  htmlFor="department-select"
-                  className="block text-xs font-semibold text-slate-700 mb-1.5"
-                >
-                  Municipal Department
-                </label>
-                <select
-                  id="department-select"
-                  value={selectedDept}
-                  onChange={(e) => setSelectedDept(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                >
-                  {DEPARTMENT_OPTIONS.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             {/* Form */}
             <form onSubmit={handleLogin} className="space-y-4">
@@ -223,13 +117,7 @@ function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={
-                    selectedRole === 'citizen'
-                      ? 'citizen@example.com'
-                      : selectedRole === 'admin'
-                      ? 'admin@civicresolve.gov'
-                      : 'official@civicresolve.gov'
-                  }
+                  placeholder="Enter your email (e.g. name@civicresolve.com)"
                   required
                   className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
                 />
@@ -269,40 +157,27 @@ function Login() {
                 </div>
               )}
 
-              {/* Informative Notice */}
-              {infoNotice && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700">
-                  {infoNotice}
-                </div>
-              )}
-
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-blue-700/20 hover:bg-blue-800 transition active:scale-[0.99]"
+                disabled={isSubmitting}
+                className="w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-blue-700/20 hover:bg-blue-800 transition active:scale-[0.99] disabled:opacity-50"
               >
-                Sign In to {selectedRole === 'citizen' ? 'Citizen' : selectedRole === 'admin' ? 'Admin' : 'Department'} Portal
+                {isSubmitting ? 'Authenticating...' : 'Sign In to Portal'}
               </button>
             </form>
 
             {/* Registration Link for Citizens */}
-            {selectedRole === 'citizen' && (
-              <div className="mt-6 border-t border-slate-100 pt-5 text-center">
-                <p className="text-xs text-slate-500">
-                  Don't have an account yet?{' '}
-                  <Link
-                    to="/register"
-                    className="font-semibold text-blue-700 hover:text-blue-800 hover:underline"
-                  >
-                    Register as a Citizen
-                  </Link>
-                </p>
-              </div>
-            )}
-
-            {/* Phase Notice */}
-            <div className="mt-5 rounded-lg bg-amber-50/80 p-3 text-[11px] text-amber-800 border border-amber-200/60 leading-relaxed">
-              <span className="font-semibold">Development Notice:</span> Real credential verification and JWT session tokens will be connected to the PHP REST API & MySQL database in Phase 3.
+            <div className="mt-6 border-t border-slate-100 pt-5 text-center">
+              <p className="text-xs text-slate-500">
+                Don't have an account yet?{' '}
+                <Link
+                  to="/register"
+                  className="font-semibold text-blue-700 hover:text-blue-800 hover:underline"
+                >
+                  Register as a Citizen
+                </Link>
+              </p>
             </div>
           </div>
         </div>

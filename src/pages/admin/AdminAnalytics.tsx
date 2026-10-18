@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BarChart,
@@ -15,26 +15,83 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import PortalNavbar from '../../components/common/PortalNavbar'
+import { api, type Complaint, type AdminMetrics } from '../../api/client'
 
 function AdminAnalytics() {
   const navigate = useNavigate()
   const [timeRange, setTimeRange] = useState('30d')
 
-  // Real database metrics will be fetched from GET /api/admin/analytics in Phase 4
+  const [metrics, setMetrics] = useState<AdminMetrics>({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    in_progress: 0,
+    resolved: 0,
+    rejected: 0,
+  })
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      setIsLoading(true)
+      try {
+        const res = await api.admin.getComplaints()
+        setMetrics(res.metrics)
+        setComplaints(res.complaints)
+      } catch {
+        // Handled via zero states
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchAnalytics()
+  }, [])
+
+  // 1. Category Data derived from real complaint records
+  const categoryMap: Record<string, number> = {}
+  complaints.forEach((c) => {
+    const cat = c.category_name || 'General'
+    categoryMap[cat] = (categoryMap[cat] || 0) + 1
+  })
+  const categoryData = Object.entries(categoryMap).map(([name, complaints]) => ({ name, complaints }))
+
+  // 2. Status Breakdown
+  const statusData = [
+    { name: 'Pending', value: metrics.pending },
+    { name: 'Approved', value: metrics.approved },
+    { name: 'In Progress', value: metrics.in_progress },
+    { name: 'Resolved', value: metrics.resolved },
+    { name: 'Rejected', value: metrics.rejected },
+  ].filter((s) => s.value > 0)
+
+  // 3. Department Data
+  const deptMap: Record<string, number> = {}
+  complaints.forEach((c) => {
+    const dept = c.department_name || 'Unassigned'
+    deptMap[dept] = (deptMap[dept] || 0) + 1
+  })
+  const departmentData = Object.entries(deptMap).map(([name, complaints]) => ({ name, complaints }))
+
+  // 4. Monthly Trend Data
+  const monthMap: Record<string, number> = {}
+  complaints.forEach((c) => {
+    const month = new Date(c.created_at).toLocaleString('default', { month: 'short' })
+    monthMap[month] = (monthMap[month] || 0) + 1
+  })
+  const monthlyData = Object.entries(monthMap).map(([month, complaints]) => ({ month, complaints }))
+
+  const resolutionRate =
+    metrics.total > 0 ? Math.round((metrics.resolved / metrics.total) * 100) : 0
+
   const summaryMetrics = [
-    { label: 'Total Received', value: '0', sub: 'Across all wards', color: 'text-slate-900' },
-    { label: 'Resolution Rate', value: '0%', sub: 'Target: >85%', color: 'text-emerald-600' },
-    { label: 'Avg Turnaround', value: '0 days', sub: 'Submission to closure', color: 'text-purple-600' },
-    { label: 'Pending Overdue', value: '0', sub: 'Escalation threshold', color: 'text-rose-600' },
+    { label: 'Total Received', value: String(metrics.total), sub: 'Across all municipal wards', color: 'text-slate-900' },
+    { label: 'Resolution Rate', value: `${resolutionRate}%`, sub: 'Verified completed', color: 'text-emerald-600' },
+    { label: 'In Progress', value: String(metrics.in_progress + metrics.approved), sub: 'Field teams deployed', color: 'text-amber-600' },
+    { label: 'Pending Triage', value: String(metrics.pending), sub: 'Awaiting admin review', color: 'text-purple-600' },
   ]
 
-  // Empty datasets awaiting MySQL records
-  const categoryData: Array<{ name: string; complaints: number }> = []
-  const statusData: Array<{ name: string; value: number }> = []
-  const monthlyData: Array<{ month: string; complaints: number }> = []
-  const departmentData: Array<{ name: string; complaints: number }> = []
-
-  const STATUS_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444']
+  const STATUS_COLORS = ['#8b5cf6', '#3b82f6', '#f59e0b', '#10b981', '#ef4444']
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -78,7 +135,9 @@ function AdminAnalytics() {
           {summaryMetrics.map((m) => (
             <div key={m.label} className="civic-card-hover rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{m.label}</span>
-              <p className={`mt-3 text-3xl font-extrabold ${m.color}`}>{m.value}</p>
+              <p className={`mt-3 text-3xl font-extrabold ${m.color}`}>
+                {isLoading ? '...' : m.value}
+              </p>
               <p className="mt-1 text-[11px] text-slate-400">{m.sub}</p>
             </div>
           ))}
@@ -101,8 +160,8 @@ function AdminAnalytics() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={categoryData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-                    <YAxis stroke="#94a3b8" fontSize={11} />
+                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={11} allowDecimals={false} />
                     <Tooltip />
                     <Bar dataKey="complaints" fill="#4f46e5" radius={[6, 6, 0, 0]} />
                   </BarChart>
@@ -133,7 +192,7 @@ function AdminAnalytics() {
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={statusData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
+                    <Pie data={statusData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(Number(percent || 0) * 100).toFixed(0)}%`}>
                       {statusData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />
                       ))}
@@ -169,7 +228,7 @@ function AdminAnalytics() {
                   <LineChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} />
-                    <YAxis stroke="#94a3b8" fontSize={11} />
+                    <YAxis stroke="#94a3b8" fontSize={11} allowDecimals={false} />
                     <Tooltip />
                     <Line type="monotone" dataKey="complaints" stroke="#2563eb" strokeWidth={2} dot={{ r: 4 }} />
                   </LineChart>
@@ -201,8 +260,8 @@ function AdminAnalytics() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={departmentData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-                    <YAxis stroke="#94a3b8" fontSize={11} />
+                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={11} allowDecimals={false} />
                     <Tooltip />
                     <Bar dataKey="complaints" fill="#059669" radius={[6, 6, 0, 0]} />
                   </BarChart>

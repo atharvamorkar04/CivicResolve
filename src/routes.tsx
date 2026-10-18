@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './context/AuthContext'
 
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 
 import Register from './pages/citizen/Register'
-import Home from './pages/citizen/Home'
 import Dashboard from './pages/citizen/Dashboard'
 import ReportIssue from './pages/citizen/ReportIssue'
 import MyComplaints from './pages/citizen/MyComplaints'
@@ -25,38 +25,86 @@ type ProtectedRouteProps = {
   allowedRole: Role
 }
 
-function ProtectedRoute({
-  children,
-  allowedRole,
-}: ProtectedRouteProps) {
-  const userRole = localStorage.getItem('userRole')
+function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
+  const { user, isLoading } = useAuth()
 
-  if (userRole !== allowedRole) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+          <p className="text-xs font-semibold text-slate-500">Verifying session...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />
   }
 
-  return children
+  if (user.role !== allowedRole) {
+    // Route to appropriate dashboard for current role
+    if (user.role === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />
+    }
+    if (user.role === 'department') {
+      return <Navigate to="/department/dashboard" replace />
+    }
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return <>{children}</>
+}
+
+function PublicAuthRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+          <p className="text-xs font-semibold text-slate-500">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (user) {
+    if (user.role === 'admin') return <Navigate to="/admin/dashboard" replace />
+    if (user.role === 'department') return <Navigate to="/department/dashboard" replace />
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return <>{children}</>
 }
 
 function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-
-        {/* Citizen */}
         <Route
-          path="/home"
+          path="/login"
           element={
-            <ProtectedRoute allowedRole="citizen">
-              <Home />
-            </ProtectedRoute>
+            <PublicAuthRoute>
+              <Login />
+            </PublicAuthRoute>
           }
         />
+        <Route
+          path="/register"
+          element={
+            <PublicAuthRoute>
+              <Register />
+            </PublicAuthRoute>
+          }
+        />
+
+        {/* Citizen */}
+        <Route path="/home" element={<Navigate to="/dashboard" replace />} />
 
         <Route
           path="/dashboard"
@@ -151,11 +199,7 @@ function AppRoutes() {
         />
 
         {/* Unknown URL */}
-        <Route
-          path="*"
-          element={<Navigate to="/" replace />}
-        />
-
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

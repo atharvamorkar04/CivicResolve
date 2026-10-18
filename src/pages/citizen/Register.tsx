@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 function Register() {
   const navigate = useNavigate()
+  const { register } = useAuth()
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -13,12 +15,12 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Calculate simple password strength
   const getPasswordStrength = () => {
     if (!password) return { label: 'Empty', percent: 0, color: 'bg-slate-200' }
-    if (password.length < 6) return { label: 'Weak', percent: 30, color: 'bg-rose-500' }
+    if (password.length < 8) return { label: 'Weak', percent: 30, color: 'bg-rose-500' }
     const hasNumbers = /\d/.test(password)
     const hasLetters = /[a-zA-Z]/.test(password)
     if (password.length >= 8 && hasNumbers && hasLetters) {
@@ -29,10 +31,9 @@ function Register() {
 
   const strength = getPasswordStrength()
 
-  const handleRegister = (e: FormEvent<HTMLFormElement>) => {
+  const handleRegister = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
-    setNotice(null)
 
     if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
       setError('Please fill in all required fields.')
@@ -44,8 +45,8 @@ function Register() {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must contain at least 6 characters.')
+    if (password.length < 8) {
+      setError('Password must contain at least 8 characters.')
       return
     }
 
@@ -54,25 +55,23 @@ function Register() {
       return
     }
 
-    // NOTICE AS PER SPECIFICATIONS:
-    // Real registration is handled by the PHP + MySQL backend in Phase 3.
-    // Client-side simulation saves non-sensitive display info for demo and informs the user.
-    localStorage.setItem(
-      'registeredUser',
-      JSON.stringify({
-        fullName: fullName.trim(),
+    setIsSubmitting(true)
+
+    try {
+      await register({
+        name: fullName.trim(),
         email: email.trim(),
-        role: 'citizen',
+        password,
+        phone: phone.trim() || undefined,
       })
-    )
 
-    setNotice(
-      'Account registration validated! Backend authentication is scheduled for Phase 3. Redirecting to Citizen Sign In...'
-    )
-
-    setTimeout(() => {
-      navigate('/login')
-    }, 1200)
+      // Registration automatically authenticates the citizen session
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -201,7 +200,7 @@ function Register() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters"
                   required
                   className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
                 />
@@ -263,19 +262,13 @@ function Register() {
                 </div>
               )}
 
-              {/* Notice Message */}
-              {notice && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
-                  {notice}
-                </div>
-              )}
-
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white shadow-md shadow-blue-700/20 hover:bg-blue-800 transition active:scale-[0.99]"
+                disabled={isSubmitting}
+                className="w-full rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white shadow-md shadow-blue-700/20 hover:bg-blue-800 transition active:scale-[0.99] disabled:opacity-50"
               >
-                Create Account
+                {isSubmitting ? 'Creating Account...' : 'Create Account'}
               </button>
             </form>
 
@@ -290,11 +283,6 @@ function Register() {
                   Sign In to Portal
                 </Link>
               </p>
-            </div>
-
-            {/* Development Notice */}
-            <div className="mt-5 rounded-lg bg-amber-50/80 p-3 text-[11px] text-amber-800 border border-amber-200/60 leading-relaxed">
-              <span className="font-semibold">Backend Notice:</span> MySQL user storage and password hashing will be connected in Phase 3 via the PHP REST API.
             </div>
           </div>
         </div>

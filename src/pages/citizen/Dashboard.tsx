@@ -1,38 +1,57 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PortalNavbar from '../../components/common/PortalNavbar'
 import EmptyState from '../../components/common/EmptyState'
+import StatusBadge from '../../components/common/StatusBadge'
+import { useAuth } from '../../context/AuthContext'
+import { api, type Complaint } from '../../api/client'
 
 function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const [showProfile, setShowProfile] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
 
-  // Citizen details
-  const registeredUser = localStorage.getItem('registeredUser')
-  let userName = 'Citizen Resident'
-  let userEmail = 'Session pending database connection'
-
-  if (registeredUser) {
+  const loadData = async () => {
+    setIsLoading(true)
+    setFetchError(null)
     try {
-      const user = JSON.parse(registeredUser)
-      if (user.role === 'citizen') {
-        userName = user.fullName || userName
-        userEmail = user.email || userEmail
-      }
-    } catch {
-      // ignore
+      const data = await api.complaints.getMyComplaints()
+      setComplaints(data)
+    } catch (err: any) {
+      setFetchError(err.message || 'Unable to retrieve complaint records from the server.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // Dashboard stats (Zero states until PHP/MySQL connection)
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const userName = user?.name || 'Citizen Resident'
+  const userEmail = user?.email || 'citizen@civicresolve.com'
+
+  // Derive genuine counts directly from the database response
+  const totalSubmitted = complaints.length
+  const pendingCount = complaints.filter((c) => c.status === 'Pending').length
+  const inProgressCount = complaints.filter((c) => c.status === 'In Progress' || c.status === 'Approved').length
+  const resolvedCount = complaints.filter((c) => c.status === 'Resolved').length
+
   const stats = [
-    { label: 'Total Submitted', value: 0, subtext: 'Lifetime reported issues', color: 'text-slate-900', icon: '📝' },
-    { label: 'Pending Triage', value: 0, subtext: 'Awaiting admin verification', color: 'text-purple-600', icon: '⏳' },
-    { label: 'In Progress', value: 0, subtext: 'Department field action', color: 'text-amber-600', icon: '🛠️' },
-    { label: 'Resolved & Closed', value: 0, subtext: 'Verified completions', color: 'text-emerald-600', icon: '✅' },
+    { label: 'Total Submitted', value: totalSubmitted, subtext: 'Lifetime reported issues', color: 'text-slate-900', icon: '📝' },
+    { label: 'Pending Review', value: pendingCount, subtext: 'Awaiting admin triage', color: 'text-purple-600', icon: '⏳' },
+    { label: 'In Progress', value: inProgressCount, subtext: 'Department field action', color: 'text-amber-600', icon: '🛠️' },
+    { label: 'Resolved & Closed', value: resolvedCount, subtext: 'Verified completions', color: 'text-emerald-600', icon: '✅' },
   ]
+
+  // Show up to 3 most recent complaints
+  const recentComplaints = complaints.slice(0, 3)
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -82,6 +101,26 @@ function Dashboard() {
           </div>
         </div>
 
+        {/* Server Fetch Error Alert */}
+        {fetchError && (
+          <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h3 className="text-sm font-bold">Failed to Synchronize Records</h3>
+                <p className="text-xs text-rose-700 mt-0.5">{fetchError}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={loadData}
+              className="self-start sm:self-auto rounded-xl bg-rose-700 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-800 transition"
+            >
+              Retry Connection
+            </button>
+          </div>
+        )}
+
         {/* 4 Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           {stats.map((s) => (
@@ -97,7 +136,7 @@ function Dashboard() {
               </div>
               <div className="mt-4">
                 <p className={`text-3xl sm:text-4xl font-extrabold ${s.color}`}>
-                  {s.value}
+                  {isLoading ? '...' : s.value}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">{s.subtext}</p>
               </div>
@@ -139,7 +178,7 @@ function Dashboard() {
               to="/my-complaints"
               className="mt-5 inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
             >
-              View All Complaints →
+              View All Complaints ({totalSubmitted}) →
             </Link>
           </div>
 
@@ -167,24 +206,64 @@ function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Recent Complaints</h2>
-              <p className="text-xs text-slate-500">Live status of your recent submissions</p>
+              <p className="text-xs text-slate-500">Live status of your submitted civic grievances</p>
             </div>
-            <Link
-              to="/my-complaints"
-              className="text-xs sm:text-sm font-semibold text-blue-700 hover:underline"
-            >
-              View Full History →
-            </Link>
+            {complaints.length > 0 && (
+              <Link
+                to="/my-complaints"
+                className="text-xs sm:text-sm font-semibold text-blue-700 hover:underline"
+              >
+                View Full History ({totalSubmitted}) →
+              </Link>
+            )}
           </div>
 
-          {/* Clean Empty State */}
-          <EmptyState
-            icon="📭"
-            title="No Active Complaints Found"
-            description="You have not submitted any civic complaints yet. When you report an infrastructure defect, its real-time progress and departmental updates will appear here."
-            actionLabel="Report Your First Issue"
-            onAction={() => navigate('/report-issue')}
-          />
+          {isLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center text-slate-400">
+              <div className="h-7 w-7 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mb-2" />
+              <p className="text-xs">Loading complaint records...</p>
+            </div>
+          ) : recentComplaints.length > 0 ? (
+            <div className="space-y-3">
+              {recentComplaints.map((c) => (
+                <div
+                  key={c.complaint_id}
+                  className="civic-card-hover rounded-xl border border-slate-200 p-4.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 bg-slate-50/50 hover:bg-white transition"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-blue-700">
+                        #{c.complaint_id}
+                      </span>
+                      <StatusBadge status={c.status} size="sm" />
+                      <span className="text-[11px] text-slate-400">
+                        {new Date(c.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{c.title}</h3>
+                    <p className="text-xs text-slate-500">
+                      📂 {c.category_name} {c.subcategory_name ? `• ${c.subcategory_name}` : ''} {c.address ? `• 📍 ${c.address}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/complaint/${c.complaint_id}`)}
+                    className="self-start sm:self-auto rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition whitespace-nowrap"
+                  >
+                    View Timeline →
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon="📭"
+              title="No Active Complaints Found"
+              description="You have not submitted any civic complaints yet. When you report an infrastructure defect, its real-time progress and departmental updates will appear here."
+              actionLabel="Report Your First Issue"
+              onAction={() => navigate('/report-issue')}
+            />
+          )}
         </section>
       </main>
 
@@ -209,7 +288,9 @@ function Dashboard() {
 
             <div className="py-6 text-center">
               <span className="text-3xl">🔔</span>
-              <p className="mt-2 text-sm font-bold text-slate-800">All Caught Up</p>
+              <p className="mt-2 text-sm font-bold text-slate-800">
+                {totalSubmitted > 0 ? `${totalSubmitted} Active Complaints Monitored` : 'All Caught Up'}
+              </p>
               <p className="mt-1 text-xs text-slate-500">
                 You will receive alerts here when the administration assigns your complaints or departments post updates.
               </p>
@@ -260,8 +341,8 @@ function Dashboard() {
 
               <div className="text-xs text-slate-600 space-y-2 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
                 <p><strong>Account Role:</strong> Registered Citizen</p>
-                <p><strong>Authentication:</strong> Scheduled for Phase 3 (PHP + MySQL)</p>
-                <p><strong>Access Level:</strong> Submit & Track Complaints</p>
+                <p><strong>Total Submissions:</strong> {totalSubmitted}</p>
+                <p><strong>Database ID:</strong> #{user?.user_id}</p>
               </div>
             </div>
 
