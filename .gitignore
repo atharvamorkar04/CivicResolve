@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# PHP Backend Local Configuration & Uploads
+api/config/config.php
+api/uploads/complaints/*
+!api/uploads/complaints/.htaccess
+!api/uploads/complaints/.gitkeep
+
