@@ -20,24 +20,6 @@
 
 ---
 
-## 📌 Table of Contents
-
-- [Overview](#-overview)
-- [Key Features & Role Portals](#-key-features--role-portals)
-  - [1. Citizen Portal](#1-citizen-portal)
-  - [2. Municipal Administrator Portal](#2-municipal-administrator-portal)
-  - [3. Department Field Operations Portal](#3-department-field-operations-portal)
-- [Interactive Mapping & Evidence Comparison](#-interactive-mapping--evidence-comparison)
-- [System Architecture & Technology Stack](#-system-architecture--technology-stack)
-- [Database Schema (MySQL InnoDB)](#-database-schema-mysql-innodb)
-- [Quick Start & Installation Guide](#-quick-start--installation-guide)
-- [Demo Login Credentials](#-demo-login-credentials)
-- [REST API Endpoints Reference](#-rest-api-endpoints-reference)
-- [Project Directory Structure](#-project-directory-structure)
-- [License & Acknowledgements](#-license--acknowledgements)
-
----
-
 ## 🌟 Overview
 
 **CivicResolve** modernizes municipal complaint management by replacing slow, paper-based, and disconnected grievance systems with a unified digital web platform. It provides:
@@ -172,15 +154,15 @@ cd CivicResolve
 3. Import your `civicresolve_db.sql` database dump.
 
 ### 4. Configure Backend Environment
-Ensure `api/config/config.php` has your local MySQL credentials:
+Create or verify your `api/config/config.php` database connection parameters:
 ```php
 return [
     'db' => [
         'host'     => '127.0.0.1',
         'port'     => 3306,
         'dbname'   => 'civicresolve_db',
-        'username' => 'root',
-        'password' => '', // Set your MySQL password if any
+        'username' => 'YOUR_DB_USERNAME',
+        'password' => 'YOUR_DB_PASSWORD',
         'charset'  => 'utf8mb4'
     ],
     // ...
@@ -212,24 +194,18 @@ Visit **`http://localhost:5173`** in your browser.
 
 ---
 
-## 🔑 Demo Login Credentials
+## 👥 Role-Based Access Tiers
 
-You can test all roles using these seeded credentials:
+CivicResolve provides universal authentication with automatic portal routing based on verified account roles:
 
-| Role | Department | Email Address | Password | Portal Accessible |
-| :--- | :--- | :--- | :--- | :--- |
-| 🛡️ **Administrator** | Municipal Headquarters | `admin@civicresolve.com` | `admin123` | `/admin/dashboard` |
-| 👤 **Citizen** | Citizen User | `citizen@civicresolve.com` | `citizen123` | `/dashboard` |
-| 🚧 **Department** | Road & Infrastructure | `road@civicresolve.com` | `dept123` | `/department/dashboard` |
-| 💧 **Department** | Water Supply & Quality | `water@civicresolve.com` | `dept123` | `/department/dashboard` |
-| 💡 **Department** | Electrical & Street Lighting | `electrical@civicresolve.com` | `dept123` | `/department/dashboard` |
-| 🗑️ **Department** | Solid Waste & Sanitation | `sanitation@civicresolve.com` | `dept123` | `/department/dashboard` |
-| 🌊 **Department** | Drainage & Sewage | `drainage@civicresolve.com` | `dept123` | `/department/dashboard` |
-| 🌳 **Department** | Parks & Public Gardens | `parks@civicresolve.com` | `dept123` | `/department/dashboard` |
-| 🦺 **Department** | Public Safety & Hazards | `safety@civicresolve.com` | `dept123` | `/department/dashboard` |
+| Role | Operational Scope | Portal View |
+| :--- | :--- | :--- |
+| 🛡️ **Municipal Administrator** | City-wide oversight, grievance verification, priority triage, and department dispatch | `/admin/dashboard` |
+| 👤 **Citizen** | Defect submission, map pinning, milestone progress tracking, and satisfaction feedback | `/dashboard` |
+| 🔧 **Department Personnel** | Assigned field queue management, status updating, and verified completion photo upload | `/department/dashboard` |
 
-> [!TIP]
-> The login portal (`/login`) is universal. Simply enter the email and password, and the system automatically routes you to the correct dashboard based on your database role.
+> [!NOTE]
+> The login portal (`/login`) is universal. Simply enter your registered email and password, and the system automatically authenticates against MySQL and navigates to your assigned dashboard.
 
 ---
 
