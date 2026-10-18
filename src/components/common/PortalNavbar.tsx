@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 interface PortalNavbarProps {
   role: 'citizen' | 'admin' | 'department'
@@ -14,13 +15,15 @@ export const PortalNavbar: React.FC<PortalNavbarProps> = ({
 }) => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, logout } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const handleSignOut = () => {
-    localStorage.removeItem('userRole')
-    localStorage.removeItem('departmentUser')
-    localStorage.removeItem('citizenUser')
-    navigate('/login')
+  const handleSignOut = async () => {
+    try {
+      await logout()
+    } finally {
+      navigate('/login')
+    }
   }
 
   const citizenLinks = [
@@ -51,6 +54,9 @@ export const PortalNavbar: React.FC<PortalNavbarProps> = ({
     admin: { label: 'Administration', color: 'bg-purple-50 text-purple-700 border-purple-200' },
     department: { label: 'Department Portal', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   }[role]
+
+  const displayName = userName || user?.name || (role === 'admin' ? 'Administrator' : role === 'citizen' ? 'Citizen' : 'Department Officer')
+  const displaySubtitle = userSubtitle || user?.email || (role === 'citizen' ? 'Resident Account' : 'Authorized Personnel')
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 backdrop-blur-md">
@@ -97,10 +103,10 @@ export const PortalNavbar: React.FC<PortalNavbarProps> = ({
         <div className="flex items-center gap-3">
           <div className="hidden sm:block text-right">
             <p className="text-xs font-bold text-slate-900 leading-tight">
-              {userName || (role === 'admin' ? 'Administrator' : role === 'citizen' ? 'Citizen' : 'Officer')}
+              {displayName}
             </p>
             <p className="text-[11px] text-slate-500 leading-tight">
-              {userSubtitle || (role === 'citizen' ? 'Resident Account' : 'Authorized Personnel')}
+              {displaySubtitle}
             </p>
           </div>
 
@@ -138,7 +144,7 @@ export const PortalNavbar: React.FC<PortalNavbarProps> = ({
           <div className="mb-3 pb-3 border-b border-slate-100 flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-slate-900">
-                {userName || (role === 'admin' ? 'Administrator' : 'Citizen')}
+                {displayName}
               </p>
               <p className="text-xs text-slate-500">{roleBadge.label}</p>
             </div>
