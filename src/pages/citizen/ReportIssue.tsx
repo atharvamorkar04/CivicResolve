@@ -314,9 +314,7 @@ function ReportIssue() {
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    Loaded live from MySQL catalog
-                  </p>
+
                 </div>
 
                 {/* Subcategory */}
@@ -344,9 +342,7 @@ function ReportIssue() {
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    Resets automatically when category changes
-                  </p>
+
                 </div>
               </div>
 
@@ -360,8 +356,8 @@ function ReportIssue() {
                     type="button"
                     onClick={() => setPriority('Standard')}
                     className={`py-2 px-3 rounded-xl text-xs font-semibold border text-center transition ${priority === 'Standard'
-                        ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                   >
                     Standard Maintenance
@@ -370,8 +366,8 @@ function ReportIssue() {
                     type="button"
                     onClick={() => setPriority('Urgent')}
                     className={`py-2 px-3 rounded-xl text-xs font-semibold border text-center transition ${priority === 'Urgent'
-                        ? 'border-rose-600 bg-rose-50 text-rose-700 ring-1 ring-rose-600'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'border-rose-600 bg-rose-50 text-rose-700 ring-1 ring-rose-600'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                   >
                     ⚠️ Urgent Safety Risk

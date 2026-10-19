@@ -1,7 +1,7 @@
 # 🏛️ CivicResolve — A Digital Platform for Civic Issue Management
 
 <p align="center">
-  <img src="public/favicon.svg" width="72" height="72" alt="CivicResolve Logo" />
+  <img src="public/logo.png" width="480" alt="CivicResolve Logo" />
 </p>
 
 <p align="center">

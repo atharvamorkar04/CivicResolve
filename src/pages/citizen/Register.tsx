@@ -81,19 +81,13 @@ function Register() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
           <Link
             to="/"
-            className="flex items-center gap-2.5 text-blue-700 hover:text-blue-800 transition"
+            className="flex items-center group transition"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 text-white shadow-sm shadow-blue-500/20">
-              <span className="font-bold text-sm">CR</span>
-            </div>
-            <div>
-              <span className="text-xl font-bold tracking-tight text-slate-900">
-                Civic<span className="text-blue-700">Resolve</span>
-              </span>
-              <p className="text-[11px] text-slate-500 leading-none">
-                Citizen Registration
-              </p>
-            </div>
+            <img
+              src="/logo.png"
+              alt="CivicResolve"
+              className="h-12 sm:h-14 md:h-16 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+            />
           </Link>
 
           <Link

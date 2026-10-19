@@ -179,11 +179,10 @@ function DepartmentDashboard() {
                   key={tab.id}
                   type="button"
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition ${
-                    statusFilter === tab.id
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition ${statusFilter === tab.id
                       ? 'bg-emerald-700 text-white'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>

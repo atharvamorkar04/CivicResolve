@@ -61,33 +61,18 @@ function LandingPage() {
           1. NAVIGATION BAR
       ========================================================================= */}
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-md transition-all">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6 sm:py-3">
           {/* Logo / Wordmark */}
           <a
             href="#home"
-            className="flex items-center gap-2.5 group transition"
+            className="flex items-center group transition"
             id="nav-logo-link"
           >
-            <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-700 to-blue-600 text-white shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="w-5 h-5 sm:w-6 sm:h-6"
-                aria-hidden="true"
-              >
-                <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
-                <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.432z" />
-              </svg>
-            </div>
-            <div>
-              <span className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 group-hover:text-blue-700 transition-colors">
-                Civic<span className="text-blue-700">Resolve</span>
-              </span>
-              <p className="hidden sm:block text-[10px] uppercase font-bold tracking-wider text-slate-500 leading-none">
-                Civic Issue Management
-              </p>
-            </div>
+            <img
+              src="/logo.png"
+              alt="CivicResolve Logo"
+              className="h-12 sm:h-14 md:h-16 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+            />
           </a>
 
           {/* Desktop Navigation Links */}
@@ -339,8 +324,12 @@ function LandingPage() {
                   {/* Card Header */}
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-bold text-sm">
-                        CR
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 border border-blue-100 p-1 shadow-sm">
+                        <img
+                          src="/logo-icon.png"
+                          alt="CivicResolve Icon"
+                          className="h-full w-full object-contain"
+                        />
                       </div>
                       <div>
                         <h2 className="text-sm font-bold text-slate-900 leading-tight">
@@ -1073,12 +1062,13 @@ function LandingPage() {
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
             {/* Brand Column */}
             <div className="lg:col-span-2 space-y-4">
-              <div className="flex items-center gap-2.5 text-white">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-bold">
-                  CR
-                </div>
-                <span className="text-xl font-bold tracking-tight">CivicResolve</span>
-              </div>
+              <a href="#home" className="inline-block bg-white rounded-xl px-3.5 py-2 shadow-sm hover:shadow-md transition">
+                <img
+                  src="/logo.png"
+                  alt="CivicResolve Logo"
+                  className="h-10 sm:h-12 w-auto object-contain"
+                />
+              </a>
               <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-sm">
                 A digital platform for civic issue management, connecting citizens with municipal
                 administration for swift, transparent grievance redressal.
