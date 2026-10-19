@@ -1,4 +1,4 @@
-# 🏛️ CivicResolve — Municipal Grievance & Civic Issue Management Platform
+# 🏛️ CivicResolve — A Digital Platform for Civic Issue Management
 
 <p align="center">
   <img src="public/favicon.svg" width="72" height="72" alt="CivicResolve Logo" />
