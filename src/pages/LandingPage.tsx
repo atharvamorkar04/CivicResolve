@@ -335,7 +335,7 @@ function LandingPage() {
                         <h2 className="text-sm font-bold text-slate-900 leading-tight">
                           Issue Lifecycle Flow
                         </h2>
-                        <p className="text-[11px] text-slate-500">Digital Resolution Pipeline</p>
+                        
                       </div>
                     </div>
 

@@ -65,8 +65,13 @@ function Register() {
         phone: phone.trim() || undefined,
       })
 
-      // Registration automatically authenticates the citizen session
-      navigate('/dashboard')
+      // After registration, redirect to login page with success notification
+      navigate('/login', {
+        state: {
+          successMessage: 'Account registered successfully! Please sign in with your email and password.',
+          email: email.trim(),
+        },
+      })
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.')
     } finally {

@@ -1,21 +1,25 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const redirectState = location.state as { successMessage?: string; email?: string } | null
   const { login } = useAuth()
 
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(redirectState?.email || '')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(redirectState?.successMessage || '')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
 
     const trimmedEmail = email.trim()
 
@@ -135,6 +139,14 @@ function Login() {
                   className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
+
+              {/* Registration Success Notification */}
+              {success && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800 flex items-center gap-2 animate-fade-in">
+                  <span className="text-emerald-600 font-bold">✓</span>
+                  <span>{success}</span>
+                </div>
+              )}
 
               {/* Error Message */}
               {error && (

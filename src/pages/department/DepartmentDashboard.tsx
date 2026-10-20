@@ -46,20 +46,9 @@ function DepartmentDashboard() {
     loadData()
   }, [])
 
-  const DEPARTMENT_NAMES: Record<number, string> = {
-    1: 'Road & Infrastructure',
-    2: 'Water Supply & Quality',
-    3: 'Electrical & Street Lighting',
-    4: 'Solid Waste & Sanitation',
-    5: 'Drainage & Sewage',
-    6: 'Parks & Public Gardens',
-    7: 'Public Safety & Hazards',
-  }
-
   const deptName =
     serverDeptName ||
     user?.department_name ||
-    (user?.department_id ? DEPARTMENT_NAMES[user.department_id] : null) ||
     'Department Operations'
 
   const filteredComplaints = useMemo(() => {

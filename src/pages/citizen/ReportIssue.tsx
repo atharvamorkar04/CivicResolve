@@ -44,7 +44,7 @@ function ReportIssue() {
       try {
         const data = await api.categories.get()
         setCategories(data)
-      } catch (err: any) {
+      } catch {
         setFormError('Failed to load categories from server. Please check backend connection.')
       } finally {
         setLoadingCategories(false)
@@ -66,7 +66,7 @@ function ReportIssue() {
       try {
         const subs = await api.categories.get(val)
         setSubcategories(subs)
-      } catch (err: any) {
+      } catch {
         setFormError('Failed to load subcategories for the chosen category.')
       } finally {
         setLoadingSubcategories(false)

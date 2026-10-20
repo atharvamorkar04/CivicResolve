@@ -16,8 +16,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
 $pdo = getDbConnection();
 
 $parentIdParam = $_GET['parent_id'] ?? null;
-$includeSubcategories = !empty($_GET['include_subcategories']);
-
 try {
     if ($parentIdParam !== null && $parentIdParam !== '') {
         $parentId = (int)$parentIdParam;
@@ -31,37 +29,6 @@ try {
         $subcategories = $stmt->fetchAll();
 
         jsonSuccess($subcategories, 'Subcategories retrieved successfully.');
-    }
-
-    if ($includeSubcategories) {
-        // Fetch full hierarchical tree
-        $stmt = $pdo->query('
-            SELECT category_id, name, parent_category_id, description, is_active
-            FROM complaint_categories
-            WHERE is_active = 1
-            ORDER BY parent_category_id ASC, name ASC
-        ');
-        $all = $stmt->fetchAll();
-
-        $tree = [];
-        $subMap = [];
-
-        foreach ($all as $item) {
-            if ($item['parent_category_id'] === null) {
-                $item['subcategories'] = [];
-                $tree[$item['category_id']] = $item;
-            } else {
-                $subMap[$item['parent_category_id']][] = $item;
-            }
-        }
-
-        foreach ($subMap as $parentId => $subs) {
-            if (isset($tree[$parentId])) {
-                $tree[$parentId]['subcategories'] = $subs;
-            }
-        }
-
-        jsonSuccess(array_values($tree), 'Category hierarchy retrieved successfully.');
     }
 
     // Default: Return top-level categories

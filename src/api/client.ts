@@ -171,12 +171,6 @@ async function request<T>(
 
 export const api = {
   auth: {
-    async csrf(): Promise<string> {
-      const res = await request<{ csrf_token: string }>('/auth/csrf.php', { method: 'GET' })
-      cachedCsrfToken = res.data?.csrf_token || null
-      return cachedCsrfToken || ''
-    },
-
     async register(data: { name: string; email: string; password: string; phone?: string }): Promise<ApiResponse<{ user: User; csrf_token: string }>> {
       return request('/auth/register.php', {
         method: 'POST',
@@ -205,11 +199,6 @@ export const api = {
     async get(parentId?: number): Promise<Category[]> {
       const q = parentId !== undefined ? `?parent_id=${parentId}` : ''
       const res = await request<Category[]>(`/categories/index.php${q}`, { method: 'GET' })
-      return res.data || []
-    },
-
-    async getTree(): Promise<Category[]> {
-      const res = await request<Category[]>('/categories/index.php?include_subcategories=1', { method: 'GET' })
       return res.data || []
     },
   },

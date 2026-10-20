@@ -70,17 +70,7 @@ try {
 
     $newUserId = (int)$pdo->lastInsertId();
 
-    // Automatically initialize authenticated session for smooth onboarding
-    session_regenerate_id(true);
-    $_SESSION['user'] = [
-        'user_id'       => $newUserId,
-        'name'          => $name,
-        'email'         => $email,
-        'role'          => 'citizen',
-        'department_id' => null,
-        'phone'         => $phone
-    ];
-
+    // Do NOT automatically log in after registration; user must sign in via login page
     jsonSuccess([
         'user' => [
             'user_id'       => $newUserId,
@@ -91,7 +81,7 @@ try {
             'phone'         => $phone
         ],
         'csrf_token' => $_SESSION['csrf_token']
-    ], 'Account registered successfully.', 201);
+    ], 'Account registered successfully. Please sign in.', 201);
 
 } catch (PDOException $e) {
     error_log('Registration DB error: ' . $e->getMessage());

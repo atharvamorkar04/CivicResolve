@@ -67,10 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!res.data?.user) {
       throw new Error(res.message || 'Registration failed')
     }
-    const newUser = res.data.user
-    setUser(newUser)
-    localStorage.setItem('userRole', newUser.role)
-    return newUser
+    return res.data.user
   }
 
   const logout = async (): Promise<void> => {
